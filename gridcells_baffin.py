@@ -193,8 +193,7 @@ cmap = cm.get_cmap("plasma_r", 10)
 
 
 fig, axs = plt.subplots(
-    2, 2, figsize=(12, 12), constrained_layout=True, subplot_kw={"projection": proj, 'aspect': 1},
-    gridspec_kw={'width_ratios': [1, 1], 'height_ratios': [1, 1]}
+    2, 2, figsize=(12, 12), constrained_layout=True, subplot_kw={"projection": proj},
 )
 params = {'mathtext.default': 'regular' }   
 plt.rcParams.update(params)
@@ -206,7 +205,6 @@ mpl.rc('font', **font)
 axs[0, 0].add_feature(coast)
 axs[0, 0].set_extent(extents)
 axs[0, 0].set(box_aspect=1)
-axs[0,0].set_aspect('auto')
 axs[0, 0].annotate('A', (1, 1),
                     xytext=(-5,-5),
                     xycoords='axes fraction',
