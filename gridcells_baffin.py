@@ -7,6 +7,7 @@ Created on Thu Feb  2 14:15:46 2023
 # -----------------------------------------------------------------------------
 # Load libraries
 # -----------------------------------------------------------------------------
+
 import geopandas as gpd
 import cartopy.feature as cfeature
 import pandas as pd
@@ -24,15 +25,15 @@ from matplotlib import cm
 # Load data
 # -----------------------------------------------------------------------------
 
-path_figures = 'D:/Abby/paper_3/plots/monthly_panels/2012_2015/'
+path_figures = 'D:/Abby/paper_3/plots/monthly_panels/'
 
 # Load ship data shapefile
 ship_data = gpd.read_file("D:/Abby/paper_3/AIS_tracks/SAIS_Tracks_2012to2019_Abby_EasternArctic/SAIS_Tracks_2012to2019_Abby_EasternArctic_nordreg.shp", index_col=False)
 ship_data = ship_data.dropna()
-ship_data_subset = ship_data.loc[(ship_data['MONTH'] >= 7) & (ship_data['MONTH'] <= 10) & (ship_data['YEAR'] >= 2012) & (ship_data['YEAR'] <= 2015)]
+ship_data_subset = ship_data.loc[(ship_data['MONTH'] >= 7) & (ship_data['MONTH'] <= 10) & (ship_data['YEAR'] >= 2012) & (ship_data['YEAR'] <= 2019)]
 
 # Load most recent Iceberg Beacon Database output file
-iceberg_data = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_filtered_08312022_clean.csv", index_col=False)
+iceberg_data = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_22032023_notalbot.csv", index_col=False)
 
 # Convert to datetime
 iceberg_data["datetime_data"] = pd.to_datetime(iceberg_data["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
@@ -64,6 +65,7 @@ for x0 in np.arange(xmin, xmax + cell_size, cell_size):
         x1 = x0 - cell_size
         y1 = y0 + cell_size
         grid_cells.append(shapely.geometry.box(x0, y0, x1, y1))
+        
 # Set grid projection
 grid = gpd.GeoDataFrame(grid_cells, columns=["geometry"], crs="epsg:3347")
 
@@ -98,16 +100,12 @@ grid.to_crs(4326).plot(
 # Create geodataframe and reproject to EPSG 3347
 # -----------------------------------------------------------------------------
 
-# # Create GeoDataFrame from iceberg data
+# Create GeoDataFrame from iceberg data
 geometry = [Point(xy) for xy in zip(iceberg_data_subset.longitude, iceberg_data_subset.latitude)]
 gdf = GeoDataFrame(iceberg_data_subset, crs="epsg:4326", geometry=geometry)
 
 # Reproject iceberg data to EPSG 3347
 iceberg_gdf = gdf.to_crs(epsg=3347)
-
-# Reproject ship data to EPSG 3347
-ship_gdf = GeoDataFrame(ship_data_subset, crs="epsg:3995")
-ship_gdf = ship_gdf.to_crs(epsg=3347)
 
 # Clip iceberg database to NORDREG zone to match ship tracks
 nordreg_poly = gpd.read_file("D:/Abby/paper_3/nordreg/NORDREG_poly.shp")
@@ -115,27 +113,32 @@ nordreg_poly = nordreg_poly.to_crs(epsg=3347)
 iceberg_gdf_clip = gpd.clip(iceberg_gdf, nordreg_poly)
 iceberg_gdf_clip.plot()
 
+# Reproject ship data to EPSG 3347
+ship_gdf = GeoDataFrame(ship_data_subset, crs="epsg:3995")
+ship_gdf = ship_gdf.to_crs(epsg=3347)
+ship_gdf.plot()
+
+# Filter ship tracks by vessel type 
+# vessel_type = ['TANKER','FISHING','GOVERNMENT/RESEARCH','CARGO','PLEASURE VESSELS','FERRY/RO-RO/PASSENGER','OTHERS/SPECIAL SHIPS','DRY BULK','TUGS/PORT','CONTAINER']
+ship_gdf = ship_gdf.loc[ship_gdf['NTYPE'] == 'CONTAINER']
+
 # Merge ship and iceberg geodataframes together
 merged = pd.merge(ship_gdf, iceberg_gdf_clip, how="outer", on='geometry')
 
 # Spatial join grid with ship tracks
-spatial_joined = gpd.sjoin(merged, grid, how="inner", op="intersects")
-
+joined = gpd.sjoin(merged, grid, how="inner", predicate="intersects") #how=inner
 
 # ----------------------------------------------------------------------------
 # Calculate grid cell statistics
 # ----------------------------------------------------------------------------
+
 ## Ships
 
-# Filter ship tracks by vessel type 
-# ('TANKER','FISHING','GOVERNMENT/RESEARCH','CARGO','PLEASURE VESSELS','FERRY/RO-RO/PASSENGER','OTHERS/SPECIAL SHIPS','DRY BULK','TUGS/PORT','CONTAINER')
-spatial_joined = spatial_joined.loc[spatial_joined['NTYPE'] == "FISHING"]
-
 # Filter ship tracks by month
-joined_july = spatial_joined.loc[spatial_joined['MONTH'] == 7]
-joined_aug = spatial_joined.loc[spatial_joined['MONTH'] == 8]
-joined_sept = spatial_joined.loc[spatial_joined['MONTH'] == 9]
-joined_oct = spatial_joined.loc[spatial_joined['MONTH'] == 10]
+joined_july = joined.loc[joined['MONTH'] == 7]
+joined_aug = joined.loc[joined['MONTH'] == 8]
+joined_sept = joined.loc[joined['MONTH'] == 9]
+joined_oct = joined.loc[joined['MONTH'] == 10]
 
 # Find unique number of ship MMSI per grid cell
 mmsi_july = joined_july.groupby(['index_right'])['mmsi'].nunique() 
@@ -149,12 +152,13 @@ merged_mmsi_aug = pd.merge(grid, mmsi_aug, left_index=True, right_index=True, ho
 merged_mmsi_sept = pd.merge(grid, mmsi_sept, left_index=True, right_index=True, how="outer")
 merged_mmsi_oct = pd.merge(grid, mmsi_oct, left_index=True, right_index=True, how="outer")
 
+
 ## Icebergs
 # Filter iceberg tracks by month
-joined_july = spatial_joined.loc[spatial_joined['datetime_data'].dt.month == 7]
-joined_aug = spatial_joined.loc[spatial_joined['datetime_data'].dt.month == 8]
-joined_sept = spatial_joined.loc[spatial_joined['datetime_data'].dt.month == 9]
-joined_oct = spatial_joined.loc[spatial_joined['datetime_data'].dt.month == 10]
+joined_july = joined.loc[joined['datetime_data'].dt.month == 7]
+joined_aug = joined.loc[joined['datetime_data'].dt.month == 8]
+joined_sept = joined.loc[joined['datetime_data'].dt.month == 9]
+joined_oct = joined.loc[joined['datetime_data'].dt.month == 10]
 
 # Find unique number of iceberg beacon IDs per grid cell
 beaconid_july = joined_july.groupby(['index_right'])['beacon_id'].nunique() 
@@ -170,11 +174,28 @@ merged_beaconid_oct = pd.merge(grid, beaconid_oct, left_index=True, right_index=
 
 
 # ----------------------------------------------------------------------------
+# Calculate iceberg risk index
+# ----------------------------------------------------------------------------
+
+# Merge dataframes with unique number of mmsi and beacon id per grid cell
+risk_index_july = pd.merge(merged_mmsi_july, merged_beaconid_july,  how="outer", on='geometry')
+risk_index_aug = pd.merge(merged_mmsi_aug, merged_beaconid_aug, how="outer", on='geometry')
+risk_index_sept = pd.merge(merged_mmsi_sept, merged_beaconid_sept, how="outer", on='geometry')
+risk_index_oct = pd.merge(merged_mmsi_oct, merged_beaconid_oct, how="outer", on='geometry')
+
+# Calculate risk index
+risk_index_july['risk_index'] = risk_index_july['mmsi'] * risk_index_july['beacon_id']
+risk_index_aug['risk_index'] = risk_index_aug['mmsi'] * risk_index_aug['beacon_id']
+risk_index_sept['risk_index'] = risk_index_sept['mmsi'] * risk_index_sept['beacon_id']
+risk_index_oct['risk_index'] = risk_index_oct['mmsi'] * risk_index_oct['beacon_id']
+
+# ----------------------------------------------------------------------------
 # Plot grid cells
 # ----------------------------------------------------------------------------
 
 # Zoom to Baffin Bay
-extents = [-83, -64, 58, 83]
+# extents = [-83, -64, 58, 83]
+extents = [-100, -55, 60, 85]
 
 # Set figure DPI
 dpi = 300
@@ -188,8 +209,9 @@ coast = cfeature.NaturalEarthFeature(
 )
 
 # Set colourbar params
-norm = mpl.colors.Normalize(vmin=0, vmax=50)
-cmap = cm.get_cmap("plasma_r", 10)
+norm = mpl.colors.Normalize(vmin=0, vmax=50) #50
+
+cmap = cm.get_cmap("plasma_r", 20)
 
 
 fig, axs = plt.subplots(
@@ -213,8 +235,8 @@ axs[0, 0].annotate('A', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[0,0].set_facecolor('#D6EAF8')
-p1 = merged_mmsi_july.plot(
-    column="mmsi",
+p1 = risk_index_july.plot(
+    column="risk_index",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -253,8 +275,8 @@ axs[0, 1].annotate('B', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[0,1].set_facecolor('#D6EAF8')
-p2 = merged_mmsi_aug.plot(
-    column="mmsi",
+p2 = risk_index_aug.plot(
+    column="risk_index",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -294,8 +316,8 @@ axs[1, 0].annotate('C', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[1,0].set_facecolor('#D6EAF8')
-p3 = merged_mmsi_sept.plot(
-    column="mmsi",
+p3 = risk_index_sept.plot(
+    column="risk_index",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -334,8 +356,8 @@ axs[1, 1].annotate('D', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[1,1].set_facecolor('#D6EAF8')
-p4 = merged_mmsi_oct.plot(
-    column="mmsi",
+p4 = risk_index_oct.plot(
+    column="risk_index",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -366,28 +388,16 @@ cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),
                   shrink=0.5,
                   orientation='horizontal') 
 cb.ax.tick_params(labelsize=12)
-cb.set_label('Unique # of MMSI: Fishing', fontsize=14)
+cb.set_label('Iceberg-Ship Risk Index: 2012-2019, Container', fontsize=14)
 
 
 # Save figure
 fig.savefig(
-    path_figures + "jaso_2012_2015_tracks_fishing.png",
+    path_figures + "jaso_2012_2019_risk_container.png",
     dpi=dpi,
     transparent=False,
     bbox_inches="tight",
 )
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
