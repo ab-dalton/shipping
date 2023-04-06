@@ -30,7 +30,7 @@ path_figures = 'D:/Abby/paper_3/plots/monthly_panels/'
 # Load ship data shapefile
 ship_data = gpd.read_file("D:/Abby/paper_3/AIS_tracks/SAIS_Tracks_2012to2019_Abby_EasternArctic/SAIS_Tracks_2012to2019_Abby_EasternArctic_nordreg.shp", index_col=False)
 ship_data = ship_data.dropna()
-ship_data_subset = ship_data.loc[(ship_data['MONTH'] >= 7) & (ship_data['MONTH'] <= 10) & (ship_data['YEAR'] >= 2012) & (ship_data['YEAR'] <= 2019)]
+ship_data_subset = ship_data.loc[(ship_data['MONTH'] >= 7) & (ship_data['MONTH'] <= 10) & (ship_data['YEAR'] >= 2016) & (ship_data['YEAR'] <= 2019)]
 
 # Load most recent Iceberg Beacon Database output file
 iceberg_data = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_22032023_notalbot.csv", index_col=False)
@@ -39,7 +39,7 @@ iceberg_data = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184
 iceberg_data["datetime_data"] = pd.to_datetime(iceberg_data["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
 
 # Filter iceberg database to shipping season (July-October)
-iceberg_data_subset = iceberg_data[(iceberg_data['datetime_data'].dt.month >= 7) & (iceberg_data['datetime_data'].dt.month <= 10) & (iceberg_data['datetime_data'].dt.year >= 2012) & (iceberg_data['datetime_data'].dt.year <= 2019)]
+iceberg_data_subset = iceberg_data[(iceberg_data['datetime_data'].dt.month >= 7) & (iceberg_data['datetime_data'].dt.month <= 10) & (iceberg_data['datetime_data'].dt.year >= 2016) & (iceberg_data['datetime_data'].dt.year <= 2019)]
 
 # -----------------------------------------------------------------------------
 # Create grid
@@ -120,7 +120,7 @@ ship_gdf.plot()
 
 # Filter ship tracks by vessel type 
 # vessel_type = ['TANKER','FISHING','GOVERNMENT/RESEARCH','CARGO','PLEASURE VESSELS','FERRY/RO-RO/PASSENGER','OTHERS/SPECIAL SHIPS','DRY BULK','TUGS/PORT','CONTAINER']
-ship_gdf = ship_gdf.loc[ship_gdf['NTYPE'] == 'CONTAINER']
+ship_gdf = ship_gdf.loc[ship_gdf['NTYPE'] == 'TUGS/PORT']
 
 # Merge ship and iceberg geodataframes together
 merged = pd.merge(ship_gdf, iceberg_gdf_clip, how="outer", on='geometry')
@@ -225,7 +225,7 @@ mpl.rc('font', **font)
 
 # July
 axs[0, 0].add_feature(coast)
-axs[0, 0].set_extent(extents)
+axs[0, 0].set_extent([-100, -55, 55, 87])
 axs[0, 0].set(box_aspect=1)
 axs[0, 0].annotate('A', (1, 1),
                     xytext=(-5,-5),
@@ -235,8 +235,8 @@ axs[0, 0].annotate('A', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[0,0].set_facecolor('#D6EAF8')
-p1 = risk_index_july.plot(
-    column="risk_index",
+p1 = merged_mmsi_july.plot(
+    column="mmsi",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -265,7 +265,7 @@ gl_2.rotate_labels = False
 
 # August
 axs[0, 1].add_feature(coast)
-axs[0, 1].set_extent(extents)
+axs[0, 1].set_extent([-100, -55, 55, 87]) #82.5 
 axs[0, 1].set(box_aspect=1)
 axs[0, 1].annotate('B', (1, 1),
                     xytext=(-5,-5),
@@ -275,8 +275,8 @@ axs[0, 1].annotate('B', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[0,1].set_facecolor('#D6EAF8')
-p2 = risk_index_aug.plot(
-    column="risk_index",
+p2 = merged_mmsi_aug.plot(
+    column="mmsi",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -306,7 +306,7 @@ gl_2.rotate_labels = False
 
 # September
 axs[1, 0].add_feature(coast)
-axs[1, 0].set_extent(extents)
+axs[1, 0].set_extent([-100, -55, 55, 87])
 axs[1, 0].set(box_aspect=1)
 axs[1, 0].annotate('C', (1, 1),
                     xytext=(-5,-5),
@@ -316,8 +316,8 @@ axs[1, 0].annotate('C', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[1,0].set_facecolor('#D6EAF8')
-p3 = risk_index_sept.plot(
-    column="risk_index",
+p3 = merged_mmsi_aug.plot(
+    column="mmsi",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -346,7 +346,7 @@ gl_2.rotate_labels = False
 
 # October
 axs[1, 1].add_feature(coast)
-axs[1, 1].set_extent(extents)
+axs[1, 1].set_extent([-100, -55, 60, 82.5])
 axs[1, 1].set(box_aspect=1)
 axs[1, 1].annotate('D', (1, 1),
                     xytext=(-5,-5),
@@ -356,8 +356,8 @@ axs[1, 1].annotate('D', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[1,1].set_facecolor('#D6EAF8')
-p4 = risk_index_oct.plot(
-    column="risk_index",
+p4 = merged_mmsi_sept.plot(
+    column="mmsi",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -388,12 +388,12 @@ cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),
                   shrink=0.5,
                   orientation='horizontal') 
 cb.ax.tick_params(labelsize=12)
-cb.set_label('Iceberg-Ship Risk Index: 2012-2019, Container', fontsize=14)
+cb.set_label('Unique # of MMSI: 2016-2019, Tugs/Port', fontsize=14)
 
 
 # Save figure
 fig.savefig(
-    path_figures + "jaso_2012_2019_risk_container.png",
+    path_figures + "jaso_2016_2019_tugsport.png",
     dpi=dpi,
     transparent=False,
     bbox_inches="tight",
