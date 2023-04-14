@@ -30,7 +30,7 @@ path_figures = 'D:/Abby/paper_3/plots/monthly_panels/'
 # Load ship data shapefile
 ship_data = gpd.read_file("D:/Abby/paper_3/AIS_tracks/SAIS_Tracks_2012to2019_Abby_EasternArctic/SAIS_Tracks_2012to2019_Abby_EasternArctic_nordreg.shp", index_col=False)
 ship_data = ship_data.dropna()
-ship_data_subset = ship_data.loc[(ship_data['MONTH'] >= 7) & (ship_data['MONTH'] <= 10) & (ship_data['YEAR'] >= 2016) & (ship_data['YEAR'] <= 2019)]
+ship_data_subset = ship_data.loc[(ship_data['MONTH'] >= 7) & (ship_data['MONTH'] <= 10) & (ship_data['YEAR'] >= 2012) & (ship_data['YEAR'] <= 2019)]
 
 # Load most recent Iceberg Beacon Database output file
 iceberg_data = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_22032023_notalbot.csv", index_col=False)
@@ -39,7 +39,7 @@ iceberg_data = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184
 iceberg_data["datetime_data"] = pd.to_datetime(iceberg_data["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
 
 # Filter iceberg database to shipping season (July-October)
-iceberg_data_subset = iceberg_data[(iceberg_data['datetime_data'].dt.month >= 7) & (iceberg_data['datetime_data'].dt.month <= 10) & (iceberg_data['datetime_data'].dt.year >= 2016) & (iceberg_data['datetime_data'].dt.year <= 2019)]
+iceberg_data_subset = iceberg_data[(iceberg_data['datetime_data'].dt.month >= 7) & (iceberg_data['datetime_data'].dt.month <= 10) & (iceberg_data['datetime_data'].dt.year >= 2012) & (iceberg_data['datetime_data'].dt.year <= 2019)]
 
 # -----------------------------------------------------------------------------
 # Create grid
@@ -209,9 +209,9 @@ coast = cfeature.NaturalEarthFeature(
 )
 
 # Set colourbar params
-norm = mpl.colors.Normalize(vmin=0, vmax=50) #50
+norm = mpl.colors.Normalize(vmin=0, vmax=10) #50
 
-cmap = cm.get_cmap("plasma_r", 20)
+cmap = cm.get_cmap("plasma_r", 10)
 
 
 fig, axs = plt.subplots(
@@ -235,8 +235,8 @@ axs[0, 0].annotate('A', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[0,0].set_facecolor('#D6EAF8')
-p1 = merged_mmsi_july.plot(
-    column="mmsi",
+p1 = merged_beaconid_july.plot(
+    column="beacon_id",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -275,8 +275,8 @@ axs[0, 1].annotate('B', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[0,1].set_facecolor('#D6EAF8')
-p2 = merged_mmsi_aug.plot(
-    column="mmsi",
+p2 = merged_beaconid_aug.plot(
+    column="beacon_id",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -316,8 +316,8 @@ axs[1, 0].annotate('C', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[1,0].set_facecolor('#D6EAF8')
-p3 = merged_mmsi_aug.plot(
-    column="mmsi",
+p3 = merged_beaconid_aug.plot(
+    column="beacon_id",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -356,8 +356,8 @@ axs[1, 1].annotate('D', (1, 1),
                     fontsize=14,
                     weight='bold')
 axs[1,1].set_facecolor('#D6EAF8')
-p4 = merged_mmsi_sept.plot(
-    column="mmsi",
+p4 = merged_beaconid_sept.plot(
+    column="beacon_id",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -388,12 +388,12 @@ cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),
                   shrink=0.5,
                   orientation='horizontal') 
 cb.ax.tick_params(labelsize=12)
-cb.set_label('Unique # of MMSI: 2016-2019, Tugs/Port', fontsize=14)
+cb.set_label('Unique # of Beacon IDs: 2012-2019', fontsize=14)
 
 
 # Save figure
 fig.savefig(
-    path_figures + "jaso_2016_2019_tugsport.png",
+    path_figures + "jaso_2012_2019_beaconid.png",
     dpi=dpi,
     transparent=False,
     bbox_inches="tight",
