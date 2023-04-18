@@ -50,11 +50,16 @@ merged_clip['ice_class'] = merged_clip['ice_class'].str.replace('RIO', '')
 
 # Convert date column to datetime
 
-merged_clip['date'] = pd.to_datetime(
-    merged_clip['date'].astype(str), format="%Y%m%d"
-)
+# merged_clip['date'] = pd.to_datetime(
+#     merged_clip['date'].astype(str), format="%Y%m%d"
+# )
 
+# merged_clip.to_csv("D:/Abby/paper_3/polaris/polaris_clipped.csv")
 
-merged_clip.to_csv("D:/Abby/paper_3/polaris/polaris_clipped.csv")
+geom = merged_clip.geometry
+merged_clip_gdf = gpd.GeoDataFrame(merged_clip, geometry=geom, crs=merged_clip.crs)
+
+merged_clip_gdf.to_file('D:/Abby/paper_3/polaris/polaris_clipped.shp')  
+
 
 
