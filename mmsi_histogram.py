@@ -49,3 +49,19 @@ fig.savefig(
     transparent=False,
     bbox_inches="tight",
 )
+
+
+
+# create a new dataframe to store the results
+ship_counts = pd.DataFrame(columns=['Ship Type', 'Year', 'Count'])
+
+# loop through the columns and index of the pivoted data frame, and add the results to the new dataframe
+for ship_type in stacked_data.columns:
+    for year in stacked_data.index:
+        count = stacked_data.loc[year, ship_type]
+        ship_counts = ship_counts.append({'Ship Type': ship_type, 'Year': year, 'Count': count}, ignore_index=True)
+        
+        
+ship_counts = pd.pivot_table(grouped, values='mmsi', index='NTYPE', columns='YEAR', aggfunc='sum')
+
+ship_counts.to_csv('D:/Abby/paper_3/AIS_tracks/ship_counts.csv')

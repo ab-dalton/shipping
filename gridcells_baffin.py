@@ -57,16 +57,16 @@ iceberg_data_subset = iceberg_data[(iceberg_data['datetime_data'].dt.month >= 7)
 
 # Set grid extents - utm mercator values to set corners in m
 # Baffin Bay
-# xmin = 6000000
-# ymin = 1900000
-# xmax = 9500000
-# ymax = 5000000
+xmin = 6000000
+ymin = 1900000
+xmax = 9500000
+ymax = 5000000
 
-# NWP/NCAA
-xmin = 5900000
-ymin = 3800000
-xmax = 6800000
-ymax = 5400000
+# # NWP/NCAA
+# xmin = 5900000
+# ymin = 3800000
+# xmax = 6800000
+# ymax = 5400000
 
 # Cell size
 # Baffin Bay
@@ -129,14 +129,16 @@ nordreg_poly = nordreg_poly.to_crs(epsg=3347)
 iceberg_gdf_clip = gpd.clip(iceberg_gdf, nordreg_poly)
 iceberg_gdf_clip.plot()
 
+iceberg_gdf['beacon_id'].nunique()
+
 # Reproject ship data to EPSG 3347
 ship_gdf = GeoDataFrame(ship_data_subset, crs="epsg:3995")
 ship_gdf = ship_gdf.to_crs(epsg=3347)
 ship_gdf.plot()
 
-# Reproject ship data to EPSG 3347
-polaris_subset = polaris_subset.to_crs(epsg=3347)
-polaris_subset.plot()
+# # Reproject ship data to EPSG 3347
+# polaris_subset = polaris_subset.to_crs(epsg=3347)
+# polaris_subset.plot()
 
 # Filter ship tracks by vessel type 
 # vessel_type = ['TANKER','FISHING','GOVERNMENT/RESEARCH','CARGO','PLEASURE VESSELS','FERRY/RO-RO/PASSENGER','OTHERS/SPECIAL SHIPS','DRY BULK','TUGS/PORT','CONTAINER']
@@ -144,15 +146,27 @@ polaris_subset.plot()
 
 # Merge ship and iceberg geodataframes together
 merged = pd.merge(ship_gdf, iceberg_gdf_clip, how="outer", on='geometry')
-merged_2 = pd.merge(merged, polaris_subset, how="outer", on='geometry')
+# merged_2 = pd.merge(merged, polaris_subset, how="outer", on='geometry')
 
 # Spatial join grid with ship tracks
-joined = gpd.sjoin(merged_2, grid, how="inner", predicate="intersects") #how=inner
+joined = gpd.sjoin(merged, grid, how="inner", predicate="intersects") #how=inner
+
+joined['beacon_id'].nunique()
+merged['beacon_id'].nunique()
 
 # ----------------------------------------------------------------------------
 # Calculate grid cell statistics
 # ----------------------------------------------------------------------------
 
+joined_early = joined.loc[(joined['MONTH'] == 7) | (joined['MONTH'] == 8)] 
+joined_late = joined.loc[(joined['MONTH'] == 9) | (joined['MONTH'] == 10)]
+
+
+joined_early = joined.loc[(joined['YEAR'] >= 2012) & (joined['YEAR'] <= 2015)] 
+joined_late = joined.loc[(joined['YEAR'] >= 2016) & (joined['YEAR'] <= 2019)]
+
+joined_early['beacon_id'].nunique()
+joined_late['beacon_id'].nunique()
 ## Ships
 
 # Filter ship tracks by month

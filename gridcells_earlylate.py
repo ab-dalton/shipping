@@ -26,12 +26,12 @@ from matplotlib import cm
 # Load data
 # -----------------------------------------------------------------------------
 
-path_figures = 'D:/Abby/paper_3/plots/monthly_panels/2012_2019/early_late/'
+path_figures = 'D:/Abby/paper_3/plots/monthly_panels/risk_index/'
 
 # Load ship data shapefile
 ship_data = gpd.read_file("D:/Abby/paper_3/AIS_tracks/SAIS_Tracks_2012to2019_Abby_EasternArctic/SAIS_Tracks_2012to2019_Abby_EasternArctic_nordreg.shp", index_col=False)
 ship_data = ship_data.dropna()
-ship_data_subset = ship_data.loc[(ship_data['MONTH'] >= 7) & (ship_data['MONTH'] <= 10) & (ship_data['YEAR'] >= 2016) & (ship_data['YEAR'] <= 2019)]
+ship_data_subset = ship_data.loc[(ship_data['MONTH'] >= 7) & (ship_data['MONTH'] <= 10) & (ship_data['YEAR'] >= 2012) & (ship_data['YEAR'] <= 2019)]
 
 # Load most recent Iceberg Beacon Database output file
 iceberg_data = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_22032023_notalbot.csv", index_col=False)
@@ -54,7 +54,7 @@ ymin = 1900000
 xmax = 9500000
 ymax = 5000000
 
-# # NWP/NCAA
+# NWP/NCAA
 # xmin = 5900000
 # ymin = 3800000
 # xmax = 6800000
@@ -148,9 +148,13 @@ for vessel_type in vessel_types:
     # Spatial join grid with ship tracks
     joined = gpd.sjoin(merged, grid, how="inner", predicate="intersects") #how=inner
 
-    # Filter ship tracks by month
-    joined_early = joined.loc[(joined['MONTH'] == 7) | (joined['MONTH'] == 8)]
-    joined_late = joined.loc[(joined['MONTH'] == 9) | (joined['MONTH'] == 10)]
+    # # Filter ship tracks by month
+    # joined_early = joined.loc[(joined['MONTH'] == 7) | (joined['MONTH'] == 8)]
+    # joined_late = joined.loc[(joined['MONTH'] == 9) | (joined['MONTH'] == 10)]
+    
+    # Filter ship tracks by year
+    joined_early = joined.loc[(joined['YEAR'] >= 2012) & (joined['YEAR'] <= 2015)]
+    joined_late = joined.loc[(joined['YEAR'] >= 2016) & (joined['YEAR'] <= 2019)]
 
     # Find unique number of ship MMSI per grid cell
     mmsi_early_type = joined_early.groupby(['index_right'])['mmsi'].nunique() 
@@ -164,23 +168,41 @@ for vessel_type in vessel_types:
 mmsi_early['ALL_TYPES'] = mmsi_early.sum(axis=1)
 mmsi_late['ALL_TYPES'] = mmsi_late.sum(axis=1)
 
+mmsi_early['PLEASURE VESSELS'].nunique()
+mmsi_late['PLEASURE VESSELS'].nunique()
+
 # Merge dataframes to add statistics to the polygon layer
 merged_mmsi_early = pd.merge(grid, mmsi_early, left_index=True, right_index=True, how="outer")
 merged_mmsi_late = pd.merge(grid, mmsi_late, left_index=True, right_index=True, how="outer")
 
 ## Icebergs
 
+# Beacon ID
 # Filter iceberg tracks by month
-joined_early = joined.loc[(joined['datetime_data'].dt.month == 7) | (joined['datetime_data'].dt.month == 8)]
-joined_late = joined.loc[(joined['datetime_data'].dt.month == 9) | (joined['datetime_data'].dt.month == 10)]
+joined_early_beaconid = joined.loc[(joined['datetime_data'].dt.month == 7) | (joined['datetime_data'].dt.month == 8)]
+joined_late_beaconid = joined.loc[(joined['datetime_data'].dt.month == 9) | (joined['datetime_data'].dt.month == 10)]
 
 # Find unique number of iceberg beacon IDs per grid cell
-beaconid_early = joined_early.groupby(['index_right'])['beacon_id'].nunique() 
-beaconid_late = joined_late.groupby(['index_right'])['beacon_id'].nunique() 
+beaconid_early = joined_early_beaconid.groupby(['index_right'])['beacon_id'].nunique() 
+beaconid_late = joined_late_beaconid.groupby(['index_right'])['beacon_id'].nunique() 
 
-# Merge dataframes to add statistics to the polygon layer
+# Find total number of unique beacon ids per season
+joined_early_beaconid["beacon_id"].nunique()
+joined_late_beaconid["beacon_id"].nunique()
+
+
+# Speed
+# Merge beacon id dataframe to grid - add statistics to the polygon layer
 merged_beaconid_early = pd.merge(grid, beaconid_early, left_index=True, right_index=True, how="outer")
 merged_beaconid_late = pd.merge(grid, beaconid_late, left_index=True, right_index=True, how="outer")
+
+# Find median iceberg speed per grid cell 
+speed_early = joined_early_beaconid.groupby(['index_right'])['speed_ms'].median() 
+speed_late = joined_late_beaconid.groupby(['index_right'])['speed_ms'].median() 
+
+# Merge beacon id dataframe to grid - add statistics to the polygon layer
+merged_speed_early = pd.merge(grid, speed_early, left_index=True, right_index=True, how="outer")
+merged_speed_late = pd.merge(grid, speed_late, left_index=True, right_index=True, how="outer")
 
 
 # ----------------------------------------------------------------------------
@@ -191,11 +213,19 @@ merged_beaconid_late = pd.merge(grid, beaconid_late, left_index=True, right_inde
 risk_index_early = pd.merge(merged_mmsi_early, merged_beaconid_early,  how="outer", on='geometry')
 risk_index_late = pd.merge(merged_mmsi_late, merged_beaconid_late, how="outer", on='geometry')
 
+
 # Loop through each vessel type column and calculate the risk index
 for vessel_type in vessel_types:
     risk_index_early[vessel_type+'_risk'] = risk_index_early[vessel_type] * risk_index_early['beacon_id']
     risk_index_late[vessel_type+'_risk'] = risk_index_late[vessel_type] * risk_index_late['beacon_id']
+    
+# Sum the risk for all vessel types combined into a column
+risk_index_early['total_risk'] = risk_index_early[[vessel_type+'_risk' for vessel_type in vessel_types]].sum(axis=1)
+risk_index_late['total_risk'] = risk_index_late[[vessel_type+'_risk' for vessel_type in vessel_types]].sum(axis=1)
 
+
+risk_index_early['total_risk'] = risk_index_early['total_risk'].replace(0, np.nan)
+risk_index_late['total_risk'] = risk_index_late['total_risk'].replace(0, np.nan)
 
 # ----------------------------------------------------------------------------
 # Plot grid cells
@@ -217,9 +247,9 @@ coast = cfeature.NaturalEarthFeature(
 )
 
 # Set colourbar params
-norm = mpl.colors.Normalize(vmin=0, vmax=50) #50
+norm = mpl.colors.Normalize(vmin=1, vmax=50) #50
 
-cmap = cm.get_cmap("plasma_r", 20)
+cmap = cm.get_cmap("plasma_r", 25)
 
 ##['TANKER','FISHING','GOVERNMENT/RESEARCH','CARGO','PLEASURE VESSELS','FERRY/RO-RO/PASSENGER','OTHERS/SPECIAL SHIPS','DRY BULK','TUGS/PORT','CONTAINER']
  
@@ -245,7 +275,7 @@ axs[0].annotate('A', (1, 1),
                     weight='bold')
 axs[0].set_facecolor('#D6EAF8')
 p1 = merged_mmsi_early.plot(
-    column="CONTAINER",
+    column="OTHERS/SPECIAL SHIPS",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -285,7 +315,7 @@ axs[1].annotate('B', (1, 1),
                     weight='bold')
 axs[1].set_facecolor('#D6EAF8')
 p2 = merged_mmsi_late.plot(
-    column="CONTAINER",
+    column="OTHERS/SPECIAL SHIPS",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -318,12 +348,13 @@ cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),
                   shrink=0.5,
                   orientation='horizontal') 
 cb.ax.tick_params(labelsize=12)
-cb.set_label('Unique # of MMSI: 2016-2019', fontsize=14)
+cb.set_label('Unique # of MMSI', fontsize=14)
+# Speed (m $s^{-1}$)
 
 
 # Save figure
 fig.savefig(
-    path_figures + "2016_2019_mmsi_container.png",
+    path_figures + "early_late_year_other.png",
     dpi=dpi,
     transparent=False,
     bbox_inches="tight",
