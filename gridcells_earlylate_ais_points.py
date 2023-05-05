@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Apr 18 15:05:40 2023
+Created on Thu May  4 09:10:49 2023
 
 @author: adalt043
 """
@@ -29,18 +29,10 @@ from matplotlib import cm
 path_figures = 'D:/Abby/paper_3/plots/monthly_panels/'
 
 # Load ship data shapefile
-ship_data = gpd.read_file("D:/Abby/paper_3/AIS_tracks/SAIS_Tracks_2012to2019_Abby_EasternArctic/SAIS_Tracks_2012to2019_Abby_EasternArctic_nordreg.shp", index_col=False)
-ship_data = ship_data.dropna()
-ship_data_subset = ship_data.loc[(ship_data['MONTH'] >= 7) & (ship_data['MONTH'] <= 10) & (ship_data['YEAR'] >= 2012) & (ship_data['YEAR'] <= 2019)]
+ship_data = pd.read_csv("D:/Abby/paper_3/AIS_tracks/ais_points_nordreg/ais_points_nordreg_merged_daily.csv", index_col=False)
+ship_data = ship_data[ship_data['NTYPE'].notna()]
+ship_data["YMD_HMS"] = pd.to_datetime(ship_data["YMD_HMS"].astype(str), format="%Y/%m/%d")
 
-# Load most recent Iceberg Beacon Database output file
-iceberg_data = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_22032023_notalbot.csv", index_col=False)
-
-# Convert to datetime
-iceberg_data["datetime_data"] = pd.to_datetime(iceberg_data["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
-
-# Filter iceberg database to shipping season (July-October)
-iceberg_data_subset = iceberg_data[(iceberg_data['datetime_data'].dt.month >= 7) & (iceberg_data['datetime_data'].dt.month <= 10) & (iceberg_data['datetime_data'].dt.year >= 2012) & (iceberg_data['datetime_data'].dt.year <= 2019)]
 
 # -----------------------------------------------------------------------------
 # Create grid
@@ -53,6 +45,12 @@ xmin = 6000000
 ymin = 1900000
 xmax = 9500000
 ymax = 5000000
+
+# NWP/NCAA
+# xmin = 5900000
+# ymin = 3800000
+# xmax = 6800000
+# ymax = 5400000
 
 # Cell size
 # Baffin Bay
@@ -101,21 +99,12 @@ grid.to_crs(4326).plot(
 # Create geodataframe and reproject to EPSG 3347
 # -----------------------------------------------------------------------------
 
-# Create GeoDataFrame from iceberg data
-geometry = [Point(xy) for xy in zip(iceberg_data_subset.longitude, iceberg_data_subset.latitude)]
-gdf = GeoDataFrame(iceberg_data_subset, crs="epsg:4326", geometry=geometry)
-
-# Reproject iceberg data to EPSG 3347
-iceberg_gdf = gdf.to_crs(epsg=3347)
-
-# Clip iceberg database to NORDREG zone to match ship tracks
-nordreg_poly = gpd.read_file("D:/Abby/paper_3/nordreg/NORDREG_poly.shp")
-nordreg_poly = nordreg_poly.to_crs(epsg=3347)
-iceberg_gdf_clip = gpd.clip(iceberg_gdf, nordreg_poly)
-iceberg_gdf_clip.plot()
+# Create GeoDataFrame from ship data
+geometry = [Point(xy) for xy in zip(ship_data.POINT_X, ship_data.POINT_Y)]
+ship_gdf = GeoDataFrame(ship_data, crs="epsg:4326", geometry=geometry)
 
 # Reproject ship data to EPSG 3347
-ship_gdf = GeoDataFrame(ship_data_subset, crs="epsg:3995")
+ship_gdf = GeoDataFrame(ship_gdf, crs="epsg:3995")
 ship_gdf = ship_gdf.to_crs(epsg=3347)
 ship_gdf.plot()
 
@@ -135,23 +124,20 @@ mmsi_late = pd.DataFrame()
 for vessel_type in vessel_types:
     
     # Filter ship tracks by vessel type 
-    ship_gdf_type = ship_gdf.loc[ship_gdf['NTYPE'] == vessel_type]
-
-    # Merge ship and iceberg geodataframes together
-    merged = pd.merge(ship_gdf_type, iceberg_gdf_clip, how="outer", on='geometry')
+    ship_gdf_type = ship_gdf.loc[ship_gdf['NTYPE2'] == vessel_type]
 
     # Spatial join grid with ship tracks
-    joined = gpd.sjoin(merged, grid, how="inner", predicate="intersects") #how=inner
+    joined = gpd.sjoin(ship_gdf_type, grid, how="inner", predicate="intersects") #how=inner
 
     # # Filter ship tracks by month
     # joined_early = joined.loc[(joined['MONTH'] == 7) | (joined['MONTH'] == 8)]
     # joined_late = joined.loc[(joined['MONTH'] == 9) | (joined['MONTH'] == 10)]
     
     # Filter ship tracks by year
-    joined_early = joined.loc[(joined['YEAR'] >= 2012) & (joined['YEAR'] <= 2015)]
-    joined_late = joined.loc[(joined['YEAR'] >= 2016) & (joined['YEAR'] <= 2019)]
+    joined_early = joined.loc[(joined['YMD_HMS'].dt.year >= 2012) & (joined['YMD_HMS'].dt.year <= 2015)]
+    joined_late = joined.loc[(joined['YMD_HMS'].dt.year >= 2016) & (joined['YMD_HMS'].dt.year <= 2019)]
 
-    # Find number of ship trips per grid cell
+    # Find number of daily ships observations per grid cell
     mmsi_early_type = joined_early.groupby(['index_right'])['mmsi'].count() 
     mmsi_late_type = joined_late.groupby(['index_right'])['mmsi'].count()  
 
@@ -163,13 +149,12 @@ for vessel_type in vessel_types:
 mmsi_early['ALL_TYPES'] = mmsi_early.sum(axis=1)
 mmsi_late['ALL_TYPES'] = mmsi_late.sum(axis=1)
 
-mmsi_early['ALL_TYPES'].count()
-mmsi_late['ALL_TYPES'].count()
+mmsi_early['PLEASURE VESSELS'].nunique()
+mmsi_late['PLEASURE VESSELS'].nunique()
 
 # Merge dataframes to add statistics to the polygon layer
 merged_mmsi_early = pd.merge(grid, mmsi_early, left_index=True, right_index=True, how="outer")
 merged_mmsi_late = pd.merge(grid, mmsi_late, left_index=True, right_index=True, how="outer")
-
 
 
 # ----------------------------------------------------------------------------
@@ -192,9 +177,9 @@ coast = cfeature.NaturalEarthFeature(
 )
 
 # Set colourbar params
-norm = mpl.colors.Normalize(vmin=1, vmax=500) #50
+norm = mpl.colors.Normalize(vmin=1, vmax=50) #50
 
-cmap = cm.get_cmap("plasma_r", 50)
+cmap = cm.get_cmap("plasma_r", 25)
 
 ##['TANKER','FISHING','GOVERNMENT/RESEARCH','CARGO','PLEASURE VESSELS','FERRY/RO-RO/PASSENGER','OTHERS/SPECIAL SHIPS','DRY BULK','TUGS/PORT','CONTAINER']
  
@@ -220,7 +205,7 @@ axs[0].annotate('A', (1, 1),
                     weight='bold')
 axs[0].set_facecolor('#D6EAF8')
 p1 = merged_mmsi_early.plot(
-    column="FERRY/RO-RO/PASSENGER",
+    column="DRY BULK",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -260,7 +245,7 @@ axs[1].annotate('B', (1, 1),
                     weight='bold')
 axs[1].set_facecolor('#D6EAF8')
 p2 = merged_mmsi_late.plot(
-    column="FERRY/RO-RO/PASSENGER",
+    column="DRY BULK",
     cmap=cmap,
     norm=norm,
     edgecolor="black",
@@ -293,13 +278,13 @@ cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),
                   shrink=0.5,
                   orientation='horizontal') 
 cb.ax.tick_params(labelsize=12)
-cb.set_label('Trip Count: All Types', fontsize=14)
+cb.set_label('Ship Density: Dry Bulk', fontsize=14)
 # Speed (m $s^{-1}$)
 
 
 # Save figure
 fig.savefig(
-    path_figures + "early_late_season_alltypes.png",
+    path_figures + "early_late_year_other.png",
     dpi=dpi,
     transparent=False,
     bbox_inches="tight",

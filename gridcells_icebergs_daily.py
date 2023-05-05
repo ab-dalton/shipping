@@ -26,14 +26,14 @@ from matplotlib import cm
 # Load data
 # -----------------------------------------------------------------------------
 
-path_figures = 'D:/Abby/paper_3/plots/monthly_panels/risk_index/'
+path_figures = 'D:/Abby/paper_3/plots/monthly_panels/'
 
 # Load ship data shapefile
 ship_data = gpd.read_file("D:/Abby/paper_3/AIS_tracks/SAIS_Tracks_2012to2019_Abby_EasternArctic/SAIS_Tracks_2012to2019_Abby_EasternArctic_nordreg.shp", index_col=False)
 ship_data = ship_data.dropna()
 ship_data_subset = ship_data.loc[(ship_data['MONTH'] >= 7) & (ship_data['MONTH'] <= 10) & (ship_data['YEAR'] >= 2012) & (ship_data['YEAR'] <= 2019)]
 
-# Load most recent Iceberg Beacon Database output file
+# Load most recent Iceberg Beacon Database output file CHANGE DEPENDING ON DURATION OR COUNT
 iceberg_data = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_22032023_notalbot.csv", index_col=False)
 
 # Convert to datetime
@@ -177,11 +177,23 @@ merged_mmsi_late = pd.merge(grid, mmsi_late, left_index=True, right_index=True, 
 
 ## Icebergs
 
-# Beacon ID
+## Beacon ID
 # Filter iceberg tracks by month
 joined_early_beaconid = joined.loc[(joined['datetime_data'].dt.month == 7) | (joined['datetime_data'].dt.month == 8)]
 joined_late_beaconid = joined.loc[(joined['datetime_data'].dt.month == 9) | (joined['datetime_data'].dt.month == 10)]
 
+# Find unique number of iceberg beacon IDs per grid cell
+beaconid_early = joined_early_beaconid.groupby(['index_right'])['beacon_id'].count() 
+beaconid_late = joined_late_beaconid.groupby(['index_right'])['beacon_id'].count() 
+
+# Merge beacon id dataframe to grid - add statistics to the polygon layer
+merged_beaconid_early = pd.merge(grid, beaconid_early, left_index=True, right_index=True, how="outer")
+merged_beaconid_late = pd.merge(grid, beaconid_late, left_index=True, right_index=True, how="outer")
+
+
+
+
+## Duration
 # Summarize the stats for each attribute in the point layer - residence time EARLY
 stats_res_time = joined_early_beaconid.groupby(["index_right"])["speed_ms"].agg(
     ["min", "max"]
@@ -349,13 +361,13 @@ cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),
                   shrink=0.5,
                   orientation='horizontal') 
 cb.ax.tick_params(labelsize=12)
-cb.set_label('Mean Duration (days)', fontsize=14)
+cb.set_label('Iceberg Residence Time (Days)', fontsize=14)
 # Speed (m $s^{-1}$)
 
 
 # Save figure
 fig.savefig(
-    path_figures + "early_late_year_other.png",
+    path_figures + "early_late_iceberg_residence_time.png",
     dpi=dpi,
     transparent=False,
     bbox_inches="tight",

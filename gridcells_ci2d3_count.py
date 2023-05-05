@@ -342,12 +342,12 @@ cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),
                   shrink=0.5,
                   orientation='horizontal') 
 cb.ax.tick_params(labelsize=12)
-cb.set_label('# of CI2D3 Observations', fontsize=14)
+cb.set_label('CI2D3 Observation Count', fontsize=14)
 
 
 # Save figure
 fig.savefig(
-    path_figures + "early_late_season_ci2d3.png",
+    path_figures + "early_late_ci2d3_count.png",
     dpi=dpi,
     transparent=False,
     bbox_inches="tight",
